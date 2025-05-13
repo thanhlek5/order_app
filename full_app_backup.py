@@ -584,11 +584,17 @@ class CoffeePOS(QMainWindow):
         self.cursor = connection.cursor()
         self.setWindowTitle("Coffee F5 - POS System")
         self.resize(1200, 700)
-        self.tables = [f"Bàn {i}" for i in range(1, 11)]  # 10 tables
-        self.current_table = "Bàn 1"  # Default table
+        self.tables = [f"Bàn {i}" for i in range(1, 11)]
+        self.current_table = "Bàn 1"
         self.current_order = {}
         self.total_amount = 0
         self.notifications = []
+        # Khai báo các thuộc tính cho show_print_receipt_dialog
+        self.payment_method = None
+        self.receipt_text = None
+        self.qr_label = None
+        self.receipt_layout = None
+        # ... (các dòng khác)
 
         # Lấy món từ database
         def menu():
@@ -634,6 +640,22 @@ class CoffeePOS(QMainWindow):
         menu_frame.setStyleSheet("background-color: rgb(0, 51, 102);")
         menu_layout = QVBoxLayout(menu_frame)
         
+        # Nút đăng xuất ở góc trên cùng bên trái
+        logout_btn = QPushButton("Đăng Xuất")
+        logout_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF4444; 
+                color: white; 
+                border-radius: 5px; 
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background-color: #FF6666;
+            }
+        """)
+        logout_btn.clicked.connect(self.logout)
+        menu_layout.addWidget(logout_btn, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+
         menu_title = QLabel("Menu")
         menu_title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
         menu_title.setStyleSheet("color: white;")
@@ -718,22 +740,6 @@ class CoffeePOS(QMainWindow):
         menu_scroll.setWidget(self.menu_content)
         menu_layout.addWidget(menu_scroll)
 
-        # Nút đăng xuất
-        logout_btn = QPushButton("Đăng Xuất")
-        logout_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FF4444; 
-                color: white; 
-                border-radius: 5px; 
-                padding: 8px;
-            }
-            QPushButton:hover {
-                background-color: #FF6666;
-            }
-        """)
-        logout_btn.clicked.connect(self.logout)
-        menu_layout.addWidget(logout_btn)
-        
         # Tạo phần hóa đơn (bên phải)
         order_frame = QFrame()
         order_frame.setFrameShape(QFrame.Shape.StyledPanel)
@@ -1070,7 +1076,7 @@ class CoffeePOS(QMainWindow):
 
         dialog = QDialog(self)
         dialog.setWindowTitle("In Hóa Đơn")
-        dialog.setMinimumSize(400, 550)
+        dialog.setMinimumSize(400, 600)
         
         palette = QPalette()
         palette.setColor(QPalette.ColorRole.Window, QColor(0, 51, 102))
@@ -1092,9 +1098,15 @@ class CoffeePOS(QMainWindow):
         payment_layout.addWidget(self.payment_method)
         layout.addWidget(payment_widget)
         
-        receipt_text = QTextEdit()
-        receipt_text.setReadOnly(True)
-        receipt_text.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 10px;")
+        receipt_widget = QWidget()
+        self.receipt_layout = QVBoxLayout(receipt_widget)
+        
+        self.receipt_text = QTextEdit()
+        self.receipt_text.setReadOnly(True)
+        self.receipt_text.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 10px;")
+        
+        self.qr_label = QLabel()
+        self.qr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         def update_receipt():
             receipt_content = "Coffee F5\n"
@@ -1102,25 +1114,50 @@ class CoffeePOS(QMainWindow):
             receipt_content += f"Bàn: {self.current_table}\n"
             receipt_content += f"Hình thức thanh toán: {self.payment_method.currentText()}\n"
             receipt_content += "-" * 60 + "\n"
-            receipt_content += f"{'Món':<25}{'SL':>3}{'Giá':>15}{'Tổng':>15}\n"
+            receipt_content += f"{'Món':<30}{'SL':^6}{'Giá':>20}\n"  # Bỏ cột "Tổng"
             receipt_content += "-" * 60 + "\n"
 
             for item, data in self.current_order.items():
-                name = item[:24]
-                qty = data['quantity']
-                price = data['price']
-                subtotal = data['subtotal']
-                receipt_content += f"{name:<25}{qty:>3}{price:>15,}{subtotal:>15,}\n"
+                name = item[:29].ljust(30)  # Độ rộng tên món
+                qty = str(data['quantity']).center(6)  # Độ rộng số lượng
+                price = f"{data['price']:>20,.2f} VND"  # Độ rộng giá
+                receipt_content += f"{name}{qty}{price}\n"
 
             receipt_content += "-" * 60 + "\n"
-            receipt_content += f"{'Tổng cộng':<43}{self.total_amount:>15,}\n"
+            receipt_content += f"{'Tổng cộng':<50}{self.total_amount:>20,.2f} VND\n"
             receipt_content += "\nCảm ơn quý khách!\n"
 
-            receipt_text.setText(receipt_content)
+            self.receipt_text.setText(receipt_content)
+            
+            if self.payment_method.currentText() == "QR Code":
+                qr_data = f"Coffee F5 Payment\nTable: {self.current_table}\nAmount: {self.total_amount} VND\nDate: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
+                try:
+                    qr = qrcode.QRCode(version=1, box_size=20, border=8)
+                    qr.add_data(qr_data)
+                    qr.make(fit=True)
+                    img = qr.make_image(fill='black', back_color='white')
+                    buffer = BytesIO()
+                    img.save(buffer, format="PNG")
+                    qimg = QImage.fromData(buffer.getvalue())
+                    pixmap = QPixmap.fromImage(qimg).scaled(250, 250, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    self.qr_label.setPixmap(pixmap)
+                    # Xóa widget cũ trước khi thêm mới
+                    for i in reversed(range(self.receipt_layout.count())):
+                        if self.receipt_layout.itemAt(i).widget() == self.qr_label:
+                            self.receipt_layout.removeWidget(self.qr_label)
+                    self.receipt_layout.addWidget(self.qr_label)
+                except Exception as e:
+                    print(f"Lỗi tạo QR Code: {str(e)}")
+                    self.qr_label.clear()
+            else:
+                if self.qr_label in self.receipt_layout.children():
+                    self.receipt_layout.removeWidget(self.qr_label)
+                    self.qr_label.clear()
 
         self.payment_method.currentTextChanged.connect(update_receipt)
         update_receipt()
-        layout.addWidget(receipt_text)
+        self.receipt_layout.addWidget(self.receipt_text)
+        layout.addWidget(receipt_widget)
         
         button_widget = QWidget()
         button_layout = QHBoxLayout(button_widget)
@@ -1157,15 +1194,23 @@ class CoffeePOS(QMainWindow):
         button_layout.addWidget(cancel_button)
         layout.addWidget(button_widget)
         
+        dialog.setModal(True)
         dialog.exec()
 
     # In hóa đơn
     def print_receipt(self, dialog, payment_method):
-        print("Đang in hóa đơn...")
-        self.add_notification(f"In hóa đơn cho {self.current_table} (Thanh toán: {payment_method})")
-        QMessageBox.information(self, "Success", "Hóa đơn đã được in thành công!")
-        dialog.accept()
+        try:
+            if not self.current_order:
+                QMessageBox.warning(self, "Warning", "Không có món nào trong đơn hàng!")
+                return
 
+            print(f"Đang in hóa đơn cho {self.current_table} (Thanh toán: {payment_method})")
+            self.add_notification(f"In hóa đơn cho {self.current_table} (Thanh toán: {payment_method})")
+            QMessageBox.information(self, "Success", "Hóa đơn đã được in thành công!")
+            dialog.accept()
+        except Exception as e:
+            print(f"Lỗi khi in hóa đơn: {str(e)}")  # In lỗi ra console để debug
+            QMessageBox.critical(self, "Lỗi", f"Lỗi khi in hóa đơn: {str(e)}")
     # Hiển thị cửa sổ thanh toán
     def show_payment_dialog(self):
         if not self.current_order:
@@ -1213,6 +1258,7 @@ class CoffeePOS(QMainWindow):
             try:
                 received = int(received_input.text().replace(',', '')) if received_input.text() else 0
                 change = received - self.total_amount
+<<<<<<< HEAD
                 change_label.setText(f"Tiền thừa: {change:,} VND")
             except ValueError:
                 change_label.setText("Tiền thừa: 0 VND")
@@ -1432,6 +1478,8 @@ class CoffeePOS(QMainWindow):
             try:
                 received = int(received_input.text().replace(',', '')) if received_input.text() else 0
                 change = received - self.total_amount
+=======
+>>>>>>> abcadde88f616217ece83bffb945707ac00e623f
                 change_label.setText(f"Tiền thừa: {max(0, change):,} VND")
             except ValueError:
                 change_label.setText("Tiền thừa: 0 VND")
@@ -1450,15 +1498,15 @@ class CoffeePOS(QMainWindow):
         
         def generate_qr_code():
             qr_data = f"Coffee F5 Payment\nTable: {self.current_table}\nAmount: {self.total_amount} VND\nDate: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
-            qr = qrcode.QRCode(version=1, box_size=5, border=1)
+            qr = qrcode.QRCode(version=1, box_size=10, border=1)
             qr.add_data(qr_data)
             qr.make(fit=True)
             img = qr.make_image(fill='black', back_color='white')
             buffer = BytesIO()
             img.save(buffer, format="PNG")
             qimg = QImage.fromData(buffer.getvalue())
-            pixmap = QPixmap.fromImage(qimg)
-            qr_label.setPixmap(pixmap.scaled(150, 150, Qt.AspectRatioMode.KeepAspectRatio))
+            pixmap = QPixmap.fromImage(qimg).scaled(100, 100, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+            qr_label.setPixmap(pixmap)
         
         qr_layout.addWidget(qr_label)
         
