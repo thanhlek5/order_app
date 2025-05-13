@@ -623,6 +623,7 @@ class CoffeePOS(QMainWindow):
         self.qr_label = None
         self.receipt_layout = None
         # ... (các dòng khác)
+        self.staff_list = QListWidget()
 
         # Lấy món từ database
         def menu():
@@ -1151,6 +1152,7 @@ class CoffeePOS(QMainWindow):
         self.payment_method.addItems(["Tiền mặt", "Thẻ ngân hàng", "QR Code"])
         self.payment_method.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 5px;")
         
+        
         payment_layout.addWidget(payment_label)
         payment_layout.addWidget(self.payment_method)
         layout.addWidget(payment_widget)
@@ -1189,14 +1191,14 @@ class CoffeePOS(QMainWindow):
             if self.payment_method.currentText() == "QR Code":
                 qr_data = f"Coffee F5 Payment\nTable: {self.current_table}\nAmount: {self.total_amount} VND\nDate: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
                 try:
-                    qr = qrcode.QRCode(version=1, box_size=20, border=8)
+                    qr = qrcode.QRCode(version=1, box_size=20, border=1)
                     qr.add_data(qr_data)
                     qr.make(fit=True)
                     img = qr.make_image(fill='black', back_color='white')
                     buffer = BytesIO()
                     img.save(buffer, format="PNG")
                     qimg = QImage.fromData(buffer.getvalue())
-                    pixmap = QPixmap.fromImage(qimg).scaled(250, 250, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    pixmap = QPixmap.fromImage(qimg).scaled(100, 100, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                     self.qr_label.setPixmap(pixmap)
                     # Xóa widget cũ trước khi thêm mới
                     for i in reversed(range(self.receipt_layout.count())):
@@ -1276,7 +1278,7 @@ class CoffeePOS(QMainWindow):
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Thanh Toán")
-        dialog.setMinimumSize(350, 300)
+        dialog.setMinimumSize(500, 400)
         
         palette = QPalette()
         palette.setColor(QPalette.ColorRole.Window, QColor(0, 51, 102))
@@ -1824,7 +1826,17 @@ class CoffeePOS(QMainWindow):
         """)
         
         # Giả lập danh sách nhân viên (có thể lấy từ database sau)
-        staff_data = ["Nhân viên 1 - Thanh", "Nhân viên 2 - Lan", "Nhân viên 3 - Hùng"]
+        
+        # Truy vấn danh sách nhân viên
+        self.cursor.execute("SELECT TEN_NHANSU, VAI_TRO FROM dbo.NHAN_SU")
+        rows = self.cursor.fetchall()
+
+        # Format dữ liệu thành chuỗi để hiển thị
+        staff_data = [f"{ten} - {chucvu}" for ten, chucvu in rows]
+            
+        
+        
+
         staff_list.addItems(staff_data)
         
         layout.addWidget(staff_list)
