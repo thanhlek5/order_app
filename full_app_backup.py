@@ -115,12 +115,12 @@ class UserManager:
 
 # Phần đăng nhập
 class LoginWindow(QMainWindow):
-    # def __init__(self, conn):
-    #     super().__init__()
-    #     self.user_manager = UserManager(conn)
-    #     self.setWindowTitle("Coffee F5")
-    #     self.setGeometry(100, 100, 300, 200)
-    #     self.setMinimumSize(250, 250)
+    def __init__(self, conn):
+        super().__init__()
+        self.user_manager = UserManager(conn)
+        self.setWindowTitle("Coffee F5")
+        self.setGeometry(100, 100, 300, 200)
+        self.setMinimumSize(250, 250)
 
         palette = QPalette()
         palette.setColor(QPalette.ColorRole.Window, QColor(0, 51, 102))
@@ -252,31 +252,31 @@ class LoginWindow(QMainWindow):
         login_button = self.findChild(QPushButton, "Login")
         if login_button:
             login_button.setStyleSheet(f"""
-                QPushButton {
+                QPushButton {{
                     background-color: #005599; 
                     color: white; 
                     border-radius: 5px; 
                     padding: 5px; 
                     font-size: {font_size}px;
-                }
-                QPushButton:hover {
+                }}
+                QPushButton:hover {{
                     background-color: #0077cc;
-                }
+                }}
             """)
 
         signup_button = self.findChild(QPushButton, "Sign Up")
         if signup_button:
             signup_button.setStyleSheet(f"""
-                QPushButton {
+                QPushButton {{
                     background-color: #005599; 
                     color: white; 
                     border-radius: 5px; 
                     padding: 5px; 
                     font-size: {font_size}px;
-                }
-                QPushButton:hover {
+                }}
+                QPushButton:hover {{
                     background-color: #0077cc;
-                }
+                }}
             """)
 
         forgot_password_button = self.findChild(QPushButton, "Forgot Password?")
@@ -329,10 +329,10 @@ class LoginWindow(QMainWindow):
         form_widget = QWidget()
         form_layout = QGridLayout(form_widget)
         
-        # username_label = QLabel("Username:")
-        # username_label.setStyleSheet("color: white; font-size: 14px;")
-        # username_input = QLineEdit()
-        # username_input.setStyleSheet("background-color: white; border-radius: 5px; color: black; font-size: 14px; padding: 5px;")
+        username_label = QLabel("Username:")
+        username_label.setStyleSheet("color: white; font-size: 14px;")
+        username_input = QLineEdit()
+        username_input.setStyleSheet("background-color: white; border-radius: 5px; color: black; font-size: 14px; padding: 5px;")
         
         password_label = QLabel("Password:")
         password_label.setStyleSheet("color: white; font-size: 14px;")
