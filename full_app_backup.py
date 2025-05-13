@@ -115,12 +115,12 @@ class UserManager:
 
 # Phần đăng nhập
 class LoginWindow(QMainWindow):
-    def __init__(self, conn):
-        super().__init__()
-        self.user_manager = UserManager(conn)
-        self.setWindowTitle("Coffee F5")
-        self.setGeometry(100, 100, 300, 200)
-        self.setMinimumSize(250, 250)
+    # def __init__(self, conn):
+    #     super().__init__()
+    #     self.user_manager = UserManager(conn)
+    #     self.setWindowTitle("Coffee F5")
+    #     self.setGeometry(100, 100, 300, 200)
+    #     self.setMinimumSize(250, 250)
 
         palette = QPalette()
         palette.setColor(QPalette.ColorRole.Window, QColor(0, 51, 102))
