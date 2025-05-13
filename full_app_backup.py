@@ -252,31 +252,31 @@ class LoginWindow(QMainWindow):
         login_button = self.findChild(QPushButton, "Login")
         if login_button:
             login_button.setStyleSheet(f"""
-                QPushButton {
+                QPushButton {{
                     background-color: #005599; 
                     color: white; 
                     border-radius: 5px; 
                     padding: 5px; 
                     font-size: {font_size}px;
-                }
-                QPushButton:hover {
+                }}
+                QPushButton:hover {{
                     background-color: #0077cc;
-                }
+                }}
             """)
 
         signup_button = self.findChild(QPushButton, "Sign Up")
         if signup_button:
             signup_button.setStyleSheet(f"""
-                QPushButton {
+                QPushButton {{
                     background-color: #005599; 
                     color: white; 
                     border-radius: 5px; 
                     padding: 5px; 
                     font-size: {font_size}px;
-                }
-                QPushButton:hover {
+                }}
+                QPushButton:hover {{
                     background-color: #0077cc;
-                }
+                }}
             """)
 
         forgot_password_button = self.findChild(QPushButton, "Forgot Password?")
