@@ -115,12 +115,12 @@ class UserManager:
 
 # Phần đăng nhập
 class LoginWindow(QMainWindow):
-    # def __init__(self, conn):
-    #     super().__init__()
-    #     self.user_manager = UserManager(conn)
-    #     self.setWindowTitle("Coffee F5")
-    #     self.setGeometry(100, 100, 300, 200)
-    #     self.setMinimumSize(250, 250)
+    def __init__(self, conn):
+        super().__init__()
+        self.user_manager = UserManager(conn)
+        self.setWindowTitle("Coffee F5")
+        self.setGeometry(100, 100, 300, 200)
+        self.setMinimumSize(250, 250)
 
         palette = QPalette()
         palette.setColor(QPalette.ColorRole.Window, QColor(0, 51, 102))
@@ -582,11 +582,17 @@ class CoffeePOS(QMainWindow):
         super().__init__()
         self.setWindowTitle("Coffee F5 - POS System")
         self.resize(1200, 700)
-        self.tables = [f"Bàn {i}" for i in range(1, 11)]  # 10 tables
-        self.current_table = "Bàn 1"  # Default table
+        self.tables = [f"Bàn {i}" for i in range(1, 11)]
+        self.current_table = "Bàn 1"
         self.current_order = {}
         self.total_amount = 0
         self.notifications = []
+        # Khai báo các thuộc tính cho show_print_receipt_dialog
+        self.payment_method = None
+        self.receipt_text = None
+        self.qr_label = None
+        self.receipt_layout = None
+        # ... (các dòng khác)
 
         # Lấy món từ database
         def menu():
@@ -632,6 +638,22 @@ class CoffeePOS(QMainWindow):
         menu_frame.setStyleSheet("background-color: rgb(0, 51, 102);")
         menu_layout = QVBoxLayout(menu_frame)
         
+        # Nút đăng xuất ở góc trên cùng bên trái
+        logout_btn = QPushButton("Đăng Xuất")
+        logout_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF4444; 
+                color: white; 
+                border-radius: 5px; 
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background-color: #FF6666;
+            }
+        """)
+        logout_btn.clicked.connect(self.logout)
+        menu_layout.addWidget(logout_btn, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+
         menu_title = QLabel("Menu")
         menu_title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
         menu_title.setStyleSheet("color: white;")
@@ -716,22 +738,6 @@ class CoffeePOS(QMainWindow):
         menu_scroll.setWidget(self.menu_content)
         menu_layout.addWidget(menu_scroll)
 
-        # Nút đăng xuất
-        logout_btn = QPushButton("Đăng Xuất")
-        logout_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FF4444; 
-                color: white; 
-                border-radius: 5px; 
-                padding: 8px;
-            }
-            QPushButton:hover {
-                background-color: #FF6666;
-            }
-        """)
-        logout_btn.clicked.connect(self.logout)
-        menu_layout.addWidget(logout_btn)
-        
         # Tạo phần hóa đơn (bên phải)
         order_frame = QFrame()
         order_frame.setFrameShape(QFrame.Shape.StyledPanel)
@@ -1068,7 +1074,7 @@ class CoffeePOS(QMainWindow):
 
         dialog = QDialog(self)
         dialog.setWindowTitle("In Hóa Đơn")
-        dialog.setMinimumSize(400, 550)
+        dialog.setMinimumSize(400, 600)
         
         palette = QPalette()
         palette.setColor(QPalette.ColorRole.Window, QColor(0, 51, 102))
@@ -1082,43 +1088,74 @@ class CoffeePOS(QMainWindow):
         
         payment_label = QLabel("Hình thức thanh toán:")
         payment_label.setStyleSheet("color: white; font-size: 14px;")
-        payment_method = QComboBox()
-        payment_method.addItems(["Tiền mặt", "Thẻ ngân hàng", "QR Code"])
-        payment_method.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 5px;")
+        self.payment_method = QComboBox()
+        self.payment_method.addItems(["Tiền mặt", "Thẻ ngân hàng", "QR Code"])
+        self.payment_method.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 5px;")
         
         payment_layout.addWidget(payment_label)
-        payment_layout.addWidget(payment_method)
+        payment_layout.addWidget(self.payment_method)
         layout.addWidget(payment_widget)
         
-        receipt_text = QTextEdit()
-        receipt_text.setReadOnly(True)
-        receipt_text.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 10px;")
+        receipt_widget = QWidget()
+        self.receipt_layout = QVBoxLayout(receipt_widget)
+        
+        self.receipt_text = QTextEdit()
+        self.receipt_text.setReadOnly(True)
+        self.receipt_text.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 10px;")
+        
+        self.qr_label = QLabel()
+        self.qr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         def update_receipt():
             receipt_content = "Coffee F5\n"
             receipt_content += f"Ngày: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
             receipt_content += f"Bàn: {self.current_table}\n"
-            receipt_content += f"Hình thức thanh toán: {payment_method.currentText()}\n"
+            receipt_content += f"Hình thức thanh toán: {self.payment_method.currentText()}\n"
             receipt_content += "-" * 60 + "\n"
-            receipt_content += f"{'Món':<25}{'SL':>3}{'Giá':>15}{'Tổng':>15}\n"
+            receipt_content += f"{'Món':<30}{'SL':^6}{'Giá':>20}\n"  # Bỏ cột "Tổng"
             receipt_content += "-" * 60 + "\n"
 
             for item, data in self.current_order.items():
-                name = item[:24]
-                qty = data['quantity']
-                price = data['price']
-                subtotal = data['subtotal']
-                receipt_content += f"{name:<25}{qty:>3}{price:>15,}{subtotal:>15,}\n"
+                name = item[:29].ljust(30)  # Độ rộng tên món
+                qty = str(data['quantity']).center(6)  # Độ rộng số lượng
+                price = f"{data['price']:>20,.2f} VND"  # Độ rộng giá
+                receipt_content += f"{name}{qty}{price}\n"
 
             receipt_content += "-" * 60 + "\n"
-            receipt_content += f"{'Tổng cộng':<43}{self.total_amount:>15,}\n"
+            receipt_content += f"{'Tổng cộng':<50}{self.total_amount:>20,.2f} VND\n"
             receipt_content += "\nCảm ơn quý khách!\n"
 
-            receipt_text.setText(receipt_content)
+            self.receipt_text.setText(receipt_content)
+            
+            if self.payment_method.currentText() == "QR Code":
+                qr_data = f"Coffee F5 Payment\nTable: {self.current_table}\nAmount: {self.total_amount} VND\nDate: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
+                try:
+                    qr = qrcode.QRCode(version=1, box_size=20, border=8)
+                    qr.add_data(qr_data)
+                    qr.make(fit=True)
+                    img = qr.make_image(fill='black', back_color='white')
+                    buffer = BytesIO()
+                    img.save(buffer, format="PNG")
+                    qimg = QImage.fromData(buffer.getvalue())
+                    pixmap = QPixmap.fromImage(qimg).scaled(250, 250, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    self.qr_label.setPixmap(pixmap)
+                    # Xóa widget cũ trước khi thêm mới
+                    for i in reversed(range(self.receipt_layout.count())):
+                        if self.receipt_layout.itemAt(i).widget() == self.qr_label:
+                            self.receipt_layout.removeWidget(self.qr_label)
+                    self.receipt_layout.addWidget(self.qr_label)
+                except Exception as e:
+                    print(f"Lỗi tạo QR Code: {str(e)}")
+                    self.qr_label.clear()
+            else:
+                if self.qr_label in self.receipt_layout.children():
+                    self.receipt_layout.removeWidget(self.qr_label)
+                    self.qr_label.clear()
 
-        payment_method.currentTextChanged.connect(update_receipt)
+        self.payment_method.currentTextChanged.connect(update_receipt)
         update_receipt()
-        layout.addWidget(receipt_text)
+        self.receipt_layout.addWidget(self.receipt_text)
+        layout.addWidget(receipt_widget)
         
         button_widget = QWidget()
         button_layout = QHBoxLayout(button_widget)
@@ -1135,7 +1172,7 @@ class CoffeePOS(QMainWindow):
                 background-color: #0077cc;
             }
         """)
-        print_button.clicked.connect(lambda: self.print_receipt(dialog, payment_method.currentText()))
+        print_button.clicked.connect(lambda: self.print_receipt(dialog, self.payment_method.currentText()))
         
         cancel_button = QPushButton("Hủy")
         cancel_button.setStyleSheet("""
@@ -1155,15 +1192,23 @@ class CoffeePOS(QMainWindow):
         button_layout.addWidget(cancel_button)
         layout.addWidget(button_widget)
         
+        dialog.setModal(True)
         dialog.exec()
 
     # In hóa đơn
     def print_receipt(self, dialog, payment_method):
-        print("Đang in hóa đơn...")
-        self.add_notification(f"In hóa đơn cho {self.current_table} (Thanh toán: {payment_method})")
-        QMessageBox.information(self, "Success", "Hóa đơn đã được in thành công!")
-        dialog.accept()
+        try:
+            if not self.current_order:
+                QMessageBox.warning(self, "Warning", "Không có món nào trong đơn hàng!")
+                return
 
+            print(f"Đang in hóa đơn cho {self.current_table} (Thanh toán: {payment_method})")
+            self.add_notification(f"In hóa đơn cho {self.current_table} (Thanh toán: {payment_method})")
+            QMessageBox.information(self, "Success", "Hóa đơn đã được in thành công!")
+            dialog.accept()
+        except Exception as e:
+            print(f"Lỗi khi in hóa đơn: {str(e)}")  # In lỗi ra console để debug
+            QMessageBox.critical(self, "Lỗi", f"Lỗi khi in hóa đơn: {str(e)}")
     # Hiển thị cửa sổ thanh toán
     def show_payment_dialog(self):
         if not self.current_order:
@@ -1174,225 +1219,6 @@ class CoffeePOS(QMainWindow):
         dialog.setWindowTitle("Thanh Toán")
         dialog.setMinimumSize(350, 300)
         
-        palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(0, 51, 102))
-        palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
-        dialog.setPalette(palette)
-
-        layout = QVBoxLayout(dialog)
-        
-        form_widget = QWidget()
-        form_layout = QGridLayout(form_widget)
-        
-        amount_label = QLabel(f"Tổng tiền: {self.total_amount:,} VND")
-        amount_label.setStyleSheet("color: white; font-size: 14px; font-weight: bold;")
-        
-        payment_method_label = QLabel("Phương thức thanh toán:")
-        payment_method_label.setStyleSheet("color: white; font-size: 14px;")
-        payment_method = QComboBox()
-        payment_method.addItems(["Tiền mặt", "Thẻ ngân hàng", "QR Code"])
-        payment_method.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 5px;")
-        
-        payment_details_widget = QWidget()
-        payment_details_layout = QVBoxLayout(payment_details_widget)
-        
-        cash_bank_widget = QWidget()
-        cash_bank_layout = QGridLayout(cash_bank_widget)
-        
-        received_label = QLabel("Số tiền nhận:")
-        received_label.setStyleSheet("color: white; font-size: 14px;")
-        received_input = QLineEdit()
-        received_input.setStyleSheet("background-color: white; border-radius: 5px; color: black; font-size: 14px; padding: 5px;")
-        
-        change_label = QLabel("Tiền thừa: 0 VND")
-        change_label.setStyleSheet("color: white; font-size: 14px;")
-        
-        def update_change():
-            try:
-                received = int(received_input.text().replace(',', '')) if received_input.text() else 0
-                change = received - self.total_amount
-                change_label.setText(f"Tiền thừa: {change:,} VND")
-            except ValueError:
-                change_label.setText("Tiền thừa: 0 VND")
-        
-        received_input.textChanged.connect(update_change)
-        
-        cash_bank_layout.addWidget(received_label, 0, 0)
-        cash_bank_layout.addWidget(received_input, 0, 1)
-        cash_bank_layout.addWidget(change_label, 1, 0, 1, 2)
-        
-        qr_widget = QWidget()
-        qr_layout = QVBoxLayout(qr_widget)
-        
-        qr_label = QLabel()
-        qr_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        def generate_qr_code():
-            qr_data = f"Coffee F5 Payment\nTable: {self.current_table}\nAmount: {self.total_amount} VND\nDate: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
-            qr = qrcode.QRCode(version=1, box_size=5, border=1)
-            qr.add_data(qr_data)
-            qr.make(fit=True)
-            img = qr.make_image(fill='black', back_color='white')
-            buffer = BytesIO()
-            img.save(buffer, format="PNG")
-            qimg = QImage.fromData(buffer.getvalue())
-            pixmap = QPixmap.fromImage(qimg)
-            qr_label.setPixmap(pixmap.scaled(150, 150, Qt.AspectRatioMode.KeepAspectRatio))
-        
-        qr_layout.addWidget(qr_label)
-        
-        def update_payment_details():
-            for i in reversed(range(payment_details_layout.count())):
-                widget = payment_details_layout.itemAt(i).widget()
-                if widget:
-                    widget.setParent(None)
-            if payment_method.currentText() == "QR Code":
-                generate_qr_code()
-                payment_details_layout.addWidget(qr_widget)
-            else:
-                payment_details_layout.addWidget(cash_bank_widget)
-        
-        payment_method.currentTextChanged.connect(update_payment_details)
-        
-        form_layout.addWidget(amount_label, 0, 0, 1, 2)
-        form_layout.addWidget(payment_method_label, 1, 0)
-        form_layout.addWidget(payment_method, 1, 1)
-        
-        layout.addWidget(form_widget)
-        layout.addWidget(payment_details_widget)
-        update_payment_details()
-        
-        button_widget = QWidget()
-        button_layout = QHBoxLayout(button_widget)
-        
-        confirm_button = QPushButton("Xác nhận")
-        confirm_button.setStyleSheet("""
-            QPushButton {
-                background-color: #005599; 
-                color: white; 
-                border-radius: 5px; 
-                padding: 8px;
-            }
-            QPushButton:hover {
-                background-color: #0077cc;
-            }
-        """)
-        confirm_button.clicked.connect(lambda: self.process_payment(dialog))
-        
-        cancel_button = QPushButton("Hủy")
-        cancel_button.setStyleSheet("""
-            QPushButton {
-                background-color: #005599; 
-                color: white; 
-                border-radius: 5px; 
-                padding: 8px;
-            }
-            QPushButton:hover {
-                background-color: #0077cc;
-            }
-        """)
-        cancel_button.clicked.connect(dialog.reject)
-        
-        button_layout.addWidget(confirm_button)
-        button_layout.addWidget(cancel_button)
-        layout.addWidget(button_widget)
-        
-        dialog.exec()
-
-    # Xử lý thanh toán
-    def process_payment(self, dialog):
-        QMessageBox.information(self, "Thanh toán", f"Đã thanh toán {self.total_amount:,} VND")
-        self.add_notification(f"Thanh toán thành công cho {self.current_table}: {self.total_amount:,} VND")
-        self.clear_order()
-        dialog.accept()
-
-    # Hiển thị cửa sổ thông báo
-    def show_notification_dialog(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Thông Báo")
-        dialog.setMinimumSize(400, 300)
-        
-        palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(0, 51, 102))
-        palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
-        dialog.setPalette(palette)
-
-        layout = QVBoxLayout(dialog)
-        
-        notification_list = QListWidget()
-        notification_list.setStyleSheet("""
-            QListWidget {
-                background-color: white;
-                color: black;
-                font-size: 14px;
-                padding: 5px;
-            }
-            QListWidget::item {
-                padding: 5px;
-                border-bottom: 1px solid #ddd;
-            }
-        """)
-        
-        for notification in reversed(self.notifications):
-            notification_list.addItem(notification)
-        
-        layout.addWidget(notification_list)
-        
-        button_widget = QWidget()
-        button_layout = QHBoxLayout(button_widget)
-        
-        clear_button = QPushButton("Xóa tất cả")
-        clear_button.setStyleSheet("""
-            QPushButton {
-                background-color: #005599; 
-                color: white; 
-                border-radius: 5px; 
-                padding: 8px;
-            }
-            QPushButton:hover {
-                background-color: #0077cc;
-            }
-        """)
-        clear_button.clicked.connect(self.clear_notifications)
-        
-        close_button = QPushButton("Đóng")
-        close_button.setStyleSheet("""
-            QPushButton {
-                background-color: #005599; 
-                color: white; 
-                border-radius: 5px; 
-                padding: 8px;
-            }
-            QPushButton:hover {
-                background-color: #0077cc;
-            }
-        """)
-        close_button.clicked.connect(dialog.accept)
-        
-        button_layout.addWidget(clear_button)
-        button_layout.addWidget(close_button)
-        layout.addWidget(button_widget)
-        
-        dialog.exec()
-
-    # Thêm thông báo
-    def add_notification(self, message):
-        timestamp = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-        self.notifications.append(f"[{timestamp}] {message}")
-        if len(self.notifications) > 50:
-            self.notifications.pop(0)
-
-    # Xóa tất cả thông báo
-    def clear_notifications(self):
-        self.notifications.clear()
-
-    # Hiển thị cửa sổ chuyển ghế bàn
-    def show_table_transfer_dialog(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Chuyển Ghế Bàn")
-        dialog.setMinimumSize(300, 200)
-        
-        palette = QPalette()
         palette = QPalette()
         palette.setColor(QPalette.ColorRole.Window, QColor(0, 51, 102))
         palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
@@ -1448,15 +1274,15 @@ class CoffeePOS(QMainWindow):
         
         def generate_qr_code():
             qr_data = f"Coffee F5 Payment\nTable: {self.current_table}\nAmount: {self.total_amount} VND\nDate: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
-            qr = qrcode.QRCode(version=1, box_size=5, border=1)
+            qr = qrcode.QRCode(version=1, box_size=10, border=1)
             qr.add_data(qr_data)
             qr.make(fit=True)
             img = qr.make_image(fill='black', back_color='white')
             buffer = BytesIO()
             img.save(buffer, format="PNG")
             qimg = QImage.fromData(buffer.getvalue())
-            pixmap = QPixmap.fromImage(qimg)
-            qr_label.setPixmap(pixmap.scaled(150, 150, Qt.AspectRatioMode.KeepAspectRatio))
+            pixmap = QPixmap.fromImage(qimg).scaled(100, 100, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+            qr_label.setPixmap(pixmap)
         
         qr_layout.addWidget(qr_label)
         
