@@ -14,6 +14,34 @@ from PIL import Image
 import io
 import qrcode
 from io import BytesIO
+from NguyenLieuTonKho import InNguyenLieu, add_NguyenLieu, xoa_nguyenlieu, cap_nhat_ton_kho
+from Mon import create_mon, read_all_mon, delete_mon
+
+
+import sys
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QGridLayout, 
+                            QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
+                            QLineEdit, QFrame, QScrollArea, QSpacerItem, 
+                            QSizePolicy, QTableWidget, QTableWidgetItem, QHeaderView,QMessageBox,QDialog,QListWidget,QComboBox,QTextEdit,QTableView)
+from PyQt6.QtCore import Qt, QSize, QByteArray
+from PyQt6.QtGui import QFont, QColor,QPalette,QIcon,QPixmap,QImage
+import pyodbc
+import difflib
+from datetime import datetime
+import pyodbc
+from PIL import Image
+import io
+import qrcode
+from io import BytesIO
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QFormLayout, QLineEdit, QPushButton, QTableWidget, QTableWidgetItem, QMessageBox, QHBoxLayout
+from Mon import create_mon, read_all_mon, delete_mon
+from PyQt6.QtCore import Qt
+from NguyenLieuTonKho import InNguyenLieu, add_NguyenLieu, xoa_nguyenlieu, cap_nhat_ton_kho
+from PyQt6.QtGui import QColor
+
+
+
 
 # Kết nối đến cơ sở dữ liệu
 conn = pyodbc.connect('Driver={ODBC Driver 17 for SQL Server};'
@@ -632,6 +660,17 @@ class CoffeePOS(QMainWindow):
         # Tạo giao diện
         self.setup_ui(main_layout)
 
+
+    def mo_quan_ly_mon(self):
+        self.mon_window = MonManager()
+        self.mon_window.show()
+
+        #Hàm Quản Lý Nguyên Liệu
+    def mo_quan_ly_nguyen_lieu(self):
+        self.nl_window = NguyenLieuTonKhoUI()
+        self.nl_window.show()
+
+
     # Giao diện màn hình chính
     def setup_ui(self, main_layout):
         # Phần menu (bên trái)
@@ -656,6 +695,24 @@ class CoffeePOS(QMainWindow):
         logout_btn.clicked.connect(self.logout)
         menu_layout.addWidget(logout_btn, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
+        # Tạo layout các nút chức năng
+        buttons_layout = QHBoxLayout()
+        
+        quanly_btn = QPushButton("Quản lý món")
+        quanly_btn.setStyleSheet("background-color: orange; color: black; padding: 8px;")
+        quanly_btn.clicked.connect(self.mo_quan_ly_mon)
+        buttons_layout.addWidget(quanly_btn)
+        menu_layout.addLayout(buttons_layout)
+
+
+        nguyenlieu_btn = QPushButton("Nguyên liệu")
+        nguyenlieu_btn.setStyleSheet("background-color: #f0ad4e; color: black; padding: 10px;")
+        nguyenlieu_btn.clicked.connect(self.mo_quan_ly_nguyen_lieu)
+        buttons_layout.addWidget(nguyenlieu_btn)
+        menu_layout.addLayout(buttons_layout)
+
+        
+        
         menu_title = QLabel("Menu")
         menu_title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
         menu_title.setStyleSheet("color: white;")
@@ -814,11 +871,11 @@ class CoffeePOS(QMainWindow):
         buttons_layout.addWidget(table_btn)
         buttons_layout.addWidget(staff_btn)
         
-        self.image_label = QLabel()
-        self.image_label.setFixedSize(200, 200)
-        self.image_label.setStyleSheet("background-color: white; border: 1px solid gray;")
-        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        menu_layout.addWidget(self.image_label)
+        # self.image_label = QLabel()
+        # self.image_label.setFixedSize(200, 200)
+        # self.image_label.setStyleSheet("background-color: white; border: 1px solid gray;")
+        # self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # menu_layout.addWidget(self.image_label)
         
         order_layout.addLayout(buttons_layout)
         
@@ -896,37 +953,37 @@ class CoffeePOS(QMainWindow):
         matched_items = {item: self.menu_items[item] for item in self.menu_items if search_text in item.lower()}
         self.display_menu_items(matched_items)
 
-    # Tải ảnh món ăn
-    def load_image_for_mon(self, ten_mon):
-        conn = pyodbc.connect('Driver={ODBC Driver 17 for SQL Server};'
-                            'Server=legion5-thanhle;'
-                            'Database=ban_nuoc;'
-                            'UID=thanh;'
-                            'PWD=1;')
+    # # Tải ảnh món ăn
+    # def load_image_for_mon(self, ten_mon):
+    #     conn = pyodbc.connect('Driver={ODBC Driver 17 for SQL Server};'
+    #                         'Server=legion5-thanhle;'
+    #                         'Database=ban_nuoc;'
+    #                         'UID=thanh;'
+    #                         'PWD=1;')
         
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT I.IMAGE FROM MON M
-            JOIN IMAGES I ON M.ID_MON = I.ID_MON
-            WHERE M.TEN_MON = ?
-        """, ten_mon)
-        row = cursor.fetchone()
-        conn.close()
+    #     cursor = conn.cursor()
+    #     cursor.execute("""
+    #         SELECT I.IMAGE FROM MON M
+    #         JOIN IMAGES I ON M.ID_MON = I.ID_MON
+    #         WHERE M.TEN_MON = ?
+    #     """, ten_mon)
+    #     row = cursor.fetchone()
+    #     conn.close()
 
-        if row and row[0]:
-            image_data = row[0]
-            image = Image.open(io.BytesIO(image_data))
-            buffer = io.BytesIO()
-            image.save(buffer, format='PNG')
-            qimg = QPixmap()
-            qimg.loadFromData(QByteArray(buffer.getvalue()))
-            self.image_label.setPixmap(qimg.scaled(200, 200))
-        else:
-            self.image_label.clear()
+    #     if row and row[0]:
+    #         image_data = row[0]
+    #         image = Image.open(io.BytesIO(image_data))
+    #         buffer = io.BytesIO()
+    #         image.save(buffer, format='PNG')
+    #         qimg = QPixmap()
+    #         qimg.loadFromData(QByteArray(buffer.getvalue()))
+    #         self.image_label.setPixmap(qimg.scaled(200, 200))
+    #     else:
+    #         self.image_label.clear()
 
     # Thêm món vào order
     def add_to_order(self, item_name, price):
-        self.load_image_for_mon(item_name)
+        # self.load_image_for_mon(item_name)
         
         row = -1
         for i in range(self.order_table.rowCount()):
@@ -1258,7 +1315,6 @@ class CoffeePOS(QMainWindow):
             try:
                 received = int(received_input.text().replace(',', '')) if received_input.text() else 0
                 change = received - self.total_amount
-<<<<<<< HEAD
                 change_label.setText(f"Tiền thừa: {change:,} VND")
             except ValueError:
                 change_label.setText("Tiền thừa: 0 VND")
@@ -1478,8 +1534,6 @@ class CoffeePOS(QMainWindow):
             try:
                 received = int(received_input.text().replace(',', '')) if received_input.text() else 0
                 change = received - self.total_amount
-=======
->>>>>>> abcadde88f616217ece83bffb945707ac00e623f
                 change_label.setText(f"Tiền thừa: {max(0, change):,} VND")
             except ValueError:
                 change_label.setText("Tiền thừa: 0 VND")
@@ -1902,6 +1956,215 @@ class CoffeePOS(QMainWindow):
             traceback.print_exc()
             return None
         
+        
+class NguyenLieuTonKhoUI(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Quản lý Nguyên Liệu Tồn Kho")
+        self.setGeometry(100, 100, 600, 400)
+
+        layout = QVBoxLayout(self)
+
+        # --- Form thêm nguyên liệu
+        form_layout = QFormLayout()
+        self.ten_input = QLineEdit()
+        self.don_vi_input = QLineEdit()
+        self.ghi_chu_input = QLineEdit()
+        form_layout.addRow("Tên Nguyên Liệu:", self.ten_input)
+        form_layout.addRow("Đơn Vị Tính:", self.don_vi_input)
+        form_layout.addRow("Ghi Chú:", self.ghi_chu_input)
+        layout.addLayout(form_layout)
+
+        them_btn = QPushButton("Thêm Nguyên Liệu")
+        them_btn.clicked.connect(self.them_nguyen_lieu)
+        layout.addWidget(them_btn)
+
+        # --- Bảng dữ liệu (QTableWidget)
+        self.table = QTableWidget()
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(["ID", "Tên", "Đơn Vị", "Số Lượng", "Ngày Cập Nhật", "Ghi Chú"])
+        # Thêm dòng này:
+        self.table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(self.table)    
+
+        # --- Nút chức năng
+        btn_layout = QHBoxLayout()
+        self.so_luong_input = QLineEdit()
+        self.so_luong_input.setPlaceholderText("Nhập số lượng (+/-)")
+        capnhat_btn = QPushButton("Cập nhật SL")
+        capnhat_btn.clicked.connect(self.cap_nhat_so_luong)
+        xoa_btn = QPushButton("Xoá nguyên liệu")
+        xoa_btn.clicked.connect(self.xoa_nguyen_lieu)
+        btn_layout.addWidget(self.so_luong_input)
+        btn_layout.addWidget(capnhat_btn)
+        btn_layout.addWidget(xoa_btn)
+        layout.addLayout(btn_layout)
+
+        self.tai_lai_bang()
+        self.setLayout(layout) # Thiết lập layout cho widget
+
+        self.table.setStyleSheet("""
+            QTableWidget {
+                
+                gridline-color: #d0d0d0;
+                font-size: 14px;
+            }
+            QHeaderView::section {
+                "background-color: rgb(0, 51, 102);"
+                color: black;
+                padding: 5px;
+                font-weight: bold;
+                border-bottom: 2px solid #c0c0c0;
+            }
+            QTableWidget::item {
+                color: black;                
+                padding: 5px;
+            }
+            QTableWidget::item:selected {
+                background-color: #a0c4ff;
+                color: black;
+            }
+        """)
+
+    def tai_lai_bang(self):
+        self.table.setRowCount(0)
+        data = InNguyenLieu()
+        for row_idx, row in enumerate(data):
+            self.table.insertRow(row_idx)
+            for col_idx, value in enumerate(row):
+                self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(value)))
+
+    def them_nguyen_lieu(self):
+        ten = self.ten_input.text()
+        dv = self.don_vi_input.text()
+        ghi_chu = self.ghi_chu_input.text()
+        if not ten or not dv:
+            QMessageBox.warning(self, "Thiếu dữ liệu", "Tên và đơn vị không được để trống.")
+            return
+        add_NguyenLieu(ten, dv, datetime.today(), ghi_chu)
+        QMessageBox.information(self, "Thành công", "Đã thêm nguyên liệu!")
+        self.ten_input.clear()
+        self.don_vi_input.clear()
+        self.ghi_chu_input.clear()
+        self.tai_lai_bang()
+
+    def cap_nhat_so_luong(self):
+        selected = self.table.currentRow()
+        if selected < 0:
+            QMessageBox.warning(self, "Chưa chọn", "Chọn dòng cần cập nhật.")
+            return
+        try:
+            delta = int(self.so_luong_input.text())
+        except ValueError:
+            QMessageBox.warning(self, "Sai định dạng", "Nhập số lượng là số.")
+            return
+        id_nl = int(self.table.item(selected, 0).text())
+        cap_nhat_ton_kho(id_nl, delta)
+        self.so_luong_input.clear()
+        self.tai_lai_bang()
+
+    def xoa_nguyen_lieu(self):
+        selected = self.table.currentRow()
+        if selected < 0:
+            QMessageBox.warning(self, "Chưa chọn", "Chọn dòng cần xoá.")
+            return
+        id_nl = int(self.table.item(selected, 0).text())
+        xoa_nguyenlieu(id_nl)
+        QMessageBox.information(self, "Đã xoá", f"Đã xoá nguyên liệu ID {id_nl}")
+        self.tai_lai_bang()
+
+        
+class MonManager(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Trang Quản Lý Món")
+        self.resize(700, 500)
+
+        layout = QVBoxLayout(self)
+
+
+        # --- Form nhập
+        form_layout = QFormLayout()
+        self.ten_input = QLineEdit()
+        self.gia_input = QLineEdit()
+        self.loai_input = QLineEdit()
+        self.mo_ta_input = QLineEdit()
+        form_layout.addRow("Tên Món:", self.ten_input)
+        form_layout.addRow("Đơn Giá:", self.gia_input)
+        form_layout.addRow("Loại:", self.loai_input)  # Đổi vị trí Mô Tả và Loại ở form
+        form_layout.addRow("Mô Tả:", self.mo_ta_input)
+        layout.addLayout(form_layout)
+
+        # --- Nút thêm
+        them_btn = QPushButton("Thêm Món")
+        them_btn.clicked.connect(self.them_mon)
+        layout.addWidget(them_btn)
+
+        # --- Bảng món
+        self.table = QTableWidget()
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["ID", "Tên", "Đơn Giá", "Loại", "Mô Tả"])  # Đổi thứ tự header
+        layout.addWidget(self.table)
+
+        # --- Nút xóa
+        xoa_btn = QPushButton("Xoá món được chọn")
+        xoa_btn.clicked.connect(self.xoa_mon)
+        layout.addWidget(xoa_btn)
+
+        self.tai_lai_bang()
+
+    def tai_lai_bang(self):
+        self.table.setRowCount(0)
+        data = read_all_mon()
+        for row_idx, row in enumerate(data):
+            self.table.insertRow(row_idx)
+            # Giả sử dữ liệu trả về từ read_all_mon() có thứ tự là [ID, Tên, Đơn Giá, Mô Tả, Loại]
+            # Chúng ta cần sắp xếp lại khi thêm vào bảng
+            self.table.setItem(row_idx, 0, QTableWidgetItem(str(row[0])))  # ID
+            self.table.setItem(row_idx, 1, QTableWidgetItem(str(row[1])))  # Tên
+            self.table.setItem(row_idx, 2, QTableWidgetItem(str(row[2])))  # Đơn Giá
+            self.table.setItem(row_idx, 3, QTableWidgetItem(str(row[4])))  # Loại (lấy từ index 4)
+            self.table.setItem(row_idx, 4, QTableWidgetItem(str(row[3])))  # Mô Tả (lấy từ index 3)
+            # Căn giữa dữ liệu (tùy chọn)
+            for col_idx in range(self.table.columnCount()):
+                if col_idx != 4: # Không căn giữa cột Mô Tả (giờ là cột cuối)
+                    self.table.item(row_idx, col_idx).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.horizontalHeader().setStretchLastSection(True) # "Mô Tả" giờ là cột cuối
+
+
+    def them_mon(self):
+        ten = self.ten_input.text()
+        try:
+            gia = float(self.gia_input.text())
+        except ValueError:
+            QMessageBox.warning(self, "Lỗi", "Đơn giá phải là số!")
+            return
+        mo_ta = self.mo_ta_input.text()
+        loai = self.loai_input.text()
+
+        if not ten or not loai: # Thứ tự kiểm tra có thể cần điều chỉnh tùy logic
+            QMessageBox.warning(self, "Thiếu thông tin", "Tên và loại không được để trống.")
+            return
+
+        create_mon(ten, gia, mo_ta, loai) # Giữ nguyên thứ tự khi gọi hàm tạo
+        QMessageBox.information(self, "Thành công", "Đã thêm món thành công!")
+        self.ten_input.clear()
+        self.gia_input.clear()
+        self.loai_input.clear()
+        self.mo_ta_input.clear()
+        self.tai_lai_bang()
+
+    def xoa_mon(self):
+        selected_row = self.table.currentRow()
+        if selected_row < 0:
+            QMessageBox.warning(self, "Chưa chọn", "Hãy chọn một món để xoá.")
+            return
+
+        id_mon = int(self.table.item(selected_row, 0).text())
+        delete_mon(id_mon)
+        QMessageBox.information(self, "Đã xoá", f"Đã xoá món có ID {id_mon}")
+        self.tai_lai_bang()
+
 if __name__ == "__main__":
     QtWidgets.QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.RoundPreferFloor
