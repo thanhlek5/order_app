@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QGridLayout,
                             QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
                             QLineEdit, QFrame, QScrollArea, QSpacerItem, 
                             QSizePolicy, QTableWidget, QTableWidgetItem, QHeaderView,
-                            QMessageBox, QDialog, QListWidget, QComboBox, QTextEdit)
+                            QMessageBox, QDialog, QListWidget, QComboBox, QTextEdit,QInputDialog)
 from PyQt6.QtCore import Qt, QSize, QByteArray
 from PyQt6.QtGui import QFont, QColor, QPalette, QIcon, QPixmap, QImage
 import pyodbc
@@ -282,17 +282,17 @@ class LoginWindow(QMainWindow):
         forgot_password_button = self.findChild(QPushButton, "Forgot Password?")
         if forgot_password_button:
             forgot_password_button.setStyleSheet(f"""
-                QPushButton {
+                QPushButton {{
                     background-color: transparent; 
                     color: white; 
                     font-size: {font_size - 2}px; 
                     border: none; 
                     padding: 5px; 
                     text-decoration: underline;
-                }
-                QPushButton:hover {
+                }}
+                QPushButton:hover {{
                     color: #cccccc;
-                }
+                }}
             """)
 
     # Xử lý đăng nhập
@@ -306,7 +306,7 @@ class LoginWindow(QMainWindow):
             
         if self.user_manager.authenticate(username, password):
             self.statusBar().showMessage("Login successful!")
-            self.main_window = CoffeePOS()
+            self.main_window = CoffeePOS(conn)
             self.main_window.show()
             self.close()
         else:
@@ -578,8 +578,10 @@ class LoginWindow(QMainWindow):
 
 # Phần main, màn hình chính
 class CoffeePOS(QMainWindow):
-    def __init__(self):
+    def __init__(self,connection):
         super().__init__()
+        self.conn = connection
+        self.cursor = connection.cursor()
         self.setWindowTitle("Coffee F5 - POS System")
         self.resize(1200, 700)
         self.tables = [f"Bàn {i}" for i in range(1, 11)]  # 10 tables
@@ -1082,12 +1084,12 @@ class CoffeePOS(QMainWindow):
         
         payment_label = QLabel("Hình thức thanh toán:")
         payment_label.setStyleSheet("color: white; font-size: 14px;")
-        payment_method = QComboBox()
-        payment_method.addItems(["Tiền mặt", "Thẻ ngân hàng", "QR Code"])
-        payment_method.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 5px;")
+        self.payment_method = QComboBox()
+        self.payment_method.addItems(["Tiền mặt", "Thẻ ngân hàng", "QR Code"])
+        self.payment_method.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 5px;")
         
         payment_layout.addWidget(payment_label)
-        payment_layout.addWidget(payment_method)
+        payment_layout.addWidget(self.payment_method)
         layout.addWidget(payment_widget)
         
         receipt_text = QTextEdit()
@@ -1098,7 +1100,7 @@ class CoffeePOS(QMainWindow):
             receipt_content = "Coffee F5\n"
             receipt_content += f"Ngày: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
             receipt_content += f"Bàn: {self.current_table}\n"
-            receipt_content += f"Hình thức thanh toán: {payment_method.currentText()}\n"
+            receipt_content += f"Hình thức thanh toán: {self.payment_method.currentText()}\n"
             receipt_content += "-" * 60 + "\n"
             receipt_content += f"{'Món':<25}{'SL':>3}{'Giá':>15}{'Tổng':>15}\n"
             receipt_content += "-" * 60 + "\n"
@@ -1116,7 +1118,7 @@ class CoffeePOS(QMainWindow):
 
             receipt_text.setText(receipt_content)
 
-        payment_method.currentTextChanged.connect(update_receipt)
+        self.payment_method.currentTextChanged.connect(update_receipt)
         update_receipt()
         layout.addWidget(receipt_text)
         
@@ -1135,7 +1137,7 @@ class CoffeePOS(QMainWindow):
                 background-color: #0077cc;
             }
         """)
-        print_button.clicked.connect(lambda: self.print_receipt(dialog, payment_method.currentText()))
+        print_button.clicked.connect(lambda: self.print_receipt(dialog, self.payment_method.currentText()))
         
         cancel_button = QPushButton("Hủy")
         cancel_button.setStyleSheet("""
@@ -1189,9 +1191,9 @@ class CoffeePOS(QMainWindow):
         
         payment_method_label = QLabel("Phương thức thanh toán:")
         payment_method_label.setStyleSheet("color: white; font-size: 14px;")
-        payment_method = QComboBox()
-        payment_method.addItems(["Tiền mặt", "Thẻ ngân hàng", "QR Code"])
-        payment_method.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 5px;")
+        self.payment_method = QComboBox()
+        self.payment_method.addItems(["Tiền mặt", "Thẻ ngân hàng", "QR Code"])
+        self.payment_method.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 5px;")
         
         payment_details_widget = QWidget()
         payment_details_layout = QVBoxLayout(payment_details_widget)
@@ -1246,17 +1248,17 @@ class CoffeePOS(QMainWindow):
                 widget = payment_details_layout.itemAt(i).widget()
                 if widget:
                     widget.setParent(None)
-            if payment_method.currentText() == "QR Code":
+            if self.payment_method.currentText() == "QR Code":
                 generate_qr_code()
                 payment_details_layout.addWidget(qr_widget)
             else:
                 payment_details_layout.addWidget(cash_bank_widget)
         
-        payment_method.currentTextChanged.connect(update_payment_details)
+        self.payment_method.currentTextChanged.connect(update_payment_details)
         
         form_layout.addWidget(amount_label, 0, 0, 1, 2)
         form_layout.addWidget(payment_method_label, 1, 0)
-        form_layout.addWidget(payment_method, 1, 1)
+        form_layout.addWidget(self.payment_method, 1, 1)
         
         layout.addWidget(form_widget)
         layout.addWidget(payment_details_widget)
@@ -1408,9 +1410,9 @@ class CoffeePOS(QMainWindow):
         
         payment_method_label = QLabel("Phương thức thanh toán:")
         payment_method_label.setStyleSheet("color: white; font-size: 14px;")
-        payment_method = QComboBox()
-        payment_method.addItems(["Tiền mặt", "Thẻ ngân hàng", "QR Code"])
-        payment_method.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 5px;")
+        self.payment_method = QComboBox()
+        self.payment_method.addItems(["Tiền mặt", "Thẻ ngân hàng", "QR Code"])
+        self.payment_method.setStyleSheet("background-color: white; color: black; font-size: 14px; padding: 5px;")
         
         payment_details_widget = QWidget()
         payment_details_layout = QVBoxLayout(payment_details_widget)
@@ -1465,17 +1467,17 @@ class CoffeePOS(QMainWindow):
                 widget = payment_details_layout.itemAt(i).widget()
                 if widget:
                     widget.setParent(None)
-            if payment_method.currentText() == "QR Code":
+            if self.payment_method.currentText() == "QR Code":
                 generate_qr_code()
                 payment_details_layout.addWidget(qr_widget)
             else:
                 payment_details_layout.addWidget(cash_bank_widget)
         
-        payment_method.currentTextChanged.connect(update_payment_details)
+        self.payment_method.currentTextChanged.connect(update_payment_details)
         
         form_layout.addWidget(amount_label, 0, 0, 1, 2)
         form_layout.addWidget(payment_method_label, 1, 0)
-        form_layout.addWidget(payment_method, 1, 1)
+        form_layout.addWidget(self.payment_method, 1, 1)
         form_layout.addWidget(payment_details_widget, 2, 0, 1, 2)
         
         layout.addWidget(form_widget)
@@ -1496,6 +1498,7 @@ class CoffeePOS(QMainWindow):
             }
         """)
         confirm_button.clicked.connect(lambda: self.process_payment(dialog))
+        
         
         cancel_button = QPushButton("Hủy")
         cancel_button.setStyleSheet("""
@@ -1521,6 +1524,7 @@ class CoffeePOS(QMainWindow):
     def process_payment(self, dialog):
         QMessageBox.information(self, "Thanh toán", f"Đã thanh toán {self.total_amount:,} VND")
         self.add_notification(f"Thanh toán thành công cho {self.current_table}: {self.total_amount:,} VND")
+        self.save_hoadon_thanhtoan(datetime.now(),self.total_amount,self.payment_method.currentText())
         self.clear_order()
         dialog.accept()
 
@@ -1796,7 +1800,60 @@ class CoffeePOS(QMainWindow):
             self.close()
             login_window = LoginWindow(conn)
             login_window.show()
-
+            
+    def save_hoadon_thanhtoan(self, ngay_lap, thanh_tien, hinh_thuc_tt):
+        try:
+            # Không chèn ID vì nó là cột IDENTITY
+            self.cursor.execute('''
+                INSERT INTO HOA_DON (NGAY_HOADON, TONGTIEN, HINH_THUC_TT) 
+                VALUES (?, ?, ?)''', 
+                (ngay_lap, thanh_tien, hinh_thuc_tt)
+            )
+            
+            # Lấy ID vừa tạo
+            self.cursor.execute('SELECT SCOPE_IDENTITY()')
+            id_result = self.cursor.fetchone()
+            
+            if id_result is None or id_result[0] is None:
+                print("Không thể lấy ID hóa đơn sau khi tạo")
+                # Thử cách khác
+                self.cursor.execute('SELECT @@IDENTITY')
+                id_result = self.cursor.fetchone()
+                
+            id_hoadon = id_result[0] if id_result and id_result[0] else None
+            
+            if id_hoadon is None:
+                print("Không thể lấy ID hóa đơn, hủy giao dịch")
+                self.conn.rollback()
+                return None
+                
+            print(f"Đã tạo hóa đơn mới với ID: {id_hoadon}")
+            
+            # Debug: Kiểm tra hóa đơn vừa tạo
+            self.cursor.execute('SELECT * FROM HOA_DON WHERE ID_HOADON = ?', (id_hoadon,))
+            hoadon_check = self.cursor.fetchone()
+            print(f"Kiểm tra hóa đơn: {hoadon_check}")
+            
+            # Insert chi tiết hóa đơn
+            for item_name, item_data in self.current_order.items():
+                print(f"Thêm món: {item_name}, SL: {item_data['quantity']}, Đơn giá: {item_data['price']}")
+                self.cursor.execute('''
+                    INSERT INTO CT_HOADON (ID_HOADON, TEN_MON, SO_LUONG, THANH_TIEN, DON_GIA) 
+                    VALUES (?, ?, ?, ?, ?)''',
+                    (id_hoadon, item_name, item_data['quantity'], item_data['subtotal'], item_data['price'])
+                )
+            
+            self.conn.commit()
+            print(f"Đã lưu hóa đơn thành công với ID: {id_hoadon}")
+            return id_hoadon
+        
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Lỗi khi lưu hóa đơn: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+        
 if __name__ == "__main__":
     QtWidgets.QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.RoundPreferFloor
