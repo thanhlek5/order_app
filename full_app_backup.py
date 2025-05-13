@@ -329,10 +329,10 @@ class LoginWindow(QMainWindow):
         form_widget = QWidget()
         form_layout = QGridLayout(form_widget)
         
-        username_label = QLabel("Username:")
-        username_label.setStyleSheet("color: white; font-size: 14px;")
-        username_input = QLineEdit()
-        username_input.setStyleSheet("background-color: white; border-radius: 5px; color: black; font-size: 14px; padding: 5px;")
+        # username_label = QLabel("Username:")
+        # username_label.setStyleSheet("color: white; font-size: 14px;")
+        # username_input = QLineEdit()
+        # username_input.setStyleSheet("background-color: white; border-radius: 5px; color: black; font-size: 14px; padding: 5px;")
         
         password_label = QLabel("Password:")
         password_label.setStyleSheet("color: white; font-size: 14px;")
