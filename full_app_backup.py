@@ -1,10 +1,11 @@
 import sys
+import PyQt6.QtCore
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QGridLayout, 
                             QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
                             QLineEdit, QFrame, QScrollArea, QSpacerItem, 
                             QSizePolicy, QTableWidget, QTableWidgetItem, QHeaderView,
-                            QMessageBox, QDialog, QListWidget, QComboBox, QTextEdit,QInputDialog)
+                            QMessageBox, QDialog, QListWidget, QComboBox, QTextEdit,QInputDialog,QFormLayout)
 from PyQt6.QtCore import Qt, QSize, QByteArray
 from PyQt6.QtGui import QFont, QColor, QPalette, QIcon, QPixmap, QImage
 import pyodbc
@@ -14,33 +15,12 @@ from PIL import Image
 import io
 import qrcode
 from io import BytesIO
-from NguyenLieuTonKho import InNguyenLieu, add_NguyenLieu, xoa_nguyenlieu, cap_nhat_ton_kho
+from NguyenLieuTonKho import InNguyenLieu, add_NguyenLieu, xoa_nguyenlieu, cap_nhat_ton_kho,tim_kiem_nguyen_lieu
 from Mon import create_mon, read_all_mon, delete_mon
-
-
-import sys
-from PyQt6 import QtWidgets
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QGridLayout, 
-                            QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
-                            QLineEdit, QFrame, QScrollArea, QSpacerItem, 
-                            QSizePolicy, QTableWidget, QTableWidgetItem, QHeaderView,QMessageBox,QDialog,QListWidget,QComboBox,QTextEdit,QTableView)
-from PyQt6.QtCore import Qt, QSize, QByteArray
-from PyQt6.QtGui import QFont, QColor,QPalette,QIcon,QPixmap,QImage
-import pyodbc
-import difflib
-from datetime import datetime
-import pyodbc
-from PIL import Image
-import io
-import qrcode
-from io import BytesIO
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QFormLayout, QLineEdit, QPushButton, QTableWidget, QTableWidgetItem, QMessageBox, QHBoxLayout
-from Mon import create_mon, read_all_mon, delete_mon
-from PyQt6.QtCore import Qt
-from NguyenLieuTonKho import InNguyenLieu, add_NguyenLieu, xoa_nguyenlieu, cap_nhat_ton_kho
-from PyQt6.QtGui import QColor
-
-
+from doanh_thu import get_doanhthu, tong_all_doanhthu,tong_nam_doanhthu,tong_thang_doanhthu,avg_doanhthu,avg_nam,avg_thang
+import matplotlib.pyplot as plt  
+from matplotlib.backends.backend_qtagg import FigureCanvas
+from matplotlib.figure import Figure
 
 
 # Kết nối đến cơ sở dữ liệu
@@ -671,6 +651,9 @@ class CoffeePOS(QMainWindow):
         self.nl_window = NguyenLieuTonKhoUI()
         self.nl_window.show()
 
+    def mo_ql_doanh_thu(self):
+        self.nl_window = Doanh_thu(conn)
+        self.nl_window.show()
 
     # Giao diện màn hình chính
     def setup_ui(self, main_layout):
@@ -679,12 +662,14 @@ class CoffeePOS(QMainWindow):
         menu_frame.setFrameShape(QFrame.Shape.StyledPanel)
         menu_frame.setStyleSheet("background-color: rgb(0, 51, 102);")
         menu_layout = QVBoxLayout(menu_frame)
-        
-        # Nút đăng xuất ở góc trên cùng bên trái
+
+
+        top_buttons_layout = QHBoxLayout()
+
         logout_btn = QPushButton("Đăng Xuất")
         logout_btn.setStyleSheet("""
             QPushButton {
-                background-color: #FF4444; 
+                background-color:red; 
                 color: white; 
                 border-radius: 5px; 
                 padding: 8px;
@@ -694,25 +679,39 @@ class CoffeePOS(QMainWindow):
             }
         """)
         logout_btn.clicked.connect(self.logout)
-        menu_layout.addWidget(logout_btn, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        top_buttons_layout.addWidget(logout_btn)
 
-        # Tạo layout các nút chức năng
+        doanhthu_btn = QPushButton("Doanh thu")
+        doanhthu_btn.setStyleSheet("""
+            QPushButton {
+                background-color:#f0ad4e; 
+                color: black; 
+                border-radius: 5px; 
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background-color: plum;
+            }
+        """)
+        doanhthu_btn.clicked.connect(self.mo_ql_doanh_thu)
+        top_buttons_layout.addWidget(doanhthu_btn)
+
+        menu_layout.addLayout(top_buttons_layout)  # chỉ thêm 1 lần
+
+        # Layout chứa: Quản lý món | Nguyên liệu | Thêm món
         buttons_layout = QHBoxLayout()
-        
+
         quanly_btn = QPushButton("Quản lý món")
-        quanly_btn.setStyleSheet("background-color: orange; color: black; padding: 8px;")
+        quanly_btn.setStyleSheet("background-color: #f0ad4e; color: black; padding: 8px;")
         quanly_btn.clicked.connect(self.mo_quan_ly_mon)
         buttons_layout.addWidget(quanly_btn)
-        menu_layout.addLayout(buttons_layout)
-
 
         nguyenlieu_btn = QPushButton("Nguyên liệu")
         nguyenlieu_btn.setStyleSheet("background-color: #f0ad4e; color: black; padding: 10px;")
         nguyenlieu_btn.clicked.connect(self.mo_quan_ly_nguyen_lieu)
         buttons_layout.addWidget(nguyenlieu_btn)
-        menu_layout.addLayout(buttons_layout)
 
-        
+        menu_layout.addLayout(buttons_layout)     
         
         menu_title = QLabel("Menu")
         menu_title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
@@ -846,31 +845,55 @@ class CoffeePOS(QMainWindow):
         # Tạo layout các nút chức năng
         buttons_layout = QHBoxLayout()
         
+        
+        order_layout.addLayout(buttons_layout)
+
         print_btn = QPushButton("In")
+        print_btn.setMinimumWidth(60)
         print_btn.setStyleSheet("background-color: #ccc; color: black; padding: 8px;")
         print_btn.clicked.connect(self.show_print_receipt_dialog)
-        
-        payment_btn = QPushButton("Thanh toán (F9)")
+
+        payment_btn = QPushButton("Thanh toán")
+        payment_btn.setMinimumWidth(130)
         payment_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
         payment_btn.clicked.connect(self.show_payment_dialog)
-        
+
         notification_btn = QPushButton("Thông báo")
+        notification_btn.setMinimumWidth(100)
         notification_btn.setStyleSheet("background-color: #FF4081; color: white; padding: 8px;")
         notification_btn.clicked.connect(self.show_notification_dialog)
-        
-        table_btn = QPushButton("Chuyển ghế bàn")
+
+        table_btn = QPushButton("Chuyển bàn")
+        table_btn.setMinimumWidth(140)
         table_btn.setStyleSheet("background-color: #64B5F6; color: white; padding: 8px;")
         table_btn.clicked.connect(self.show_table_transfer_dialog)
 
         staff_btn = QPushButton("Quản Lý Nhân Viên")
+        staff_btn.setMinimumWidth(160)
         staff_btn.setStyleSheet("background-color: #FFA500; color: white; padding: 8px;")
         staff_btn.clicked.connect(self.show_staff_management)
         
+        buttons_layout.addStretch()
         buttons_layout.addWidget(print_btn)
         buttons_layout.addWidget(payment_btn)
         buttons_layout.addWidget(notification_btn)
         buttons_layout.addWidget(table_btn)
         buttons_layout.addWidget(staff_btn)
+        buttons_layout.addStretch()
+
+        line1 = QHBoxLayout()
+        line1.addWidget(print_btn)
+        line1.addWidget(table_btn)
+        line1.addWidget(notification_btn)
+
+        line2 = QHBoxLayout()
+        line2.addWidget(payment_btn)
+        line2.addWidget(staff_btn)
+
+        buttons_layout = QVBoxLayout()
+        buttons_layout.addLayout(line1)
+        buttons_layout.addLayout(line2)
+        order_layout.addLayout(buttons_layout)
         
         # self.image_label = QLabel()
         # self.image_label.setFixedSize(200, 200)
@@ -1870,7 +1893,7 @@ class CoffeePOS(QMainWindow):
                 background-color: #0077cc;
             }
         """)
-        remove_button.clicked.connect(lambda: self.remove_staff(dialog, staff_list))
+        remove_button.clicked.connect(lambda: self.remove_staff(dialog,staff_list))
         
         close_button = QPushButton("Đóng")
         close_button.setStyleSheet("""
@@ -1895,18 +1918,73 @@ class CoffeePOS(QMainWindow):
 
     # Thêm nhân viên
     def add_staff(self, dialog, staff_list):
-        name, ok = QInputDialog.getText(dialog, "Thêm Nhân Viên", "Nhập tên nhân viên:")
-        if ok and name:
-            staff_list.addItem(f"Nhân viên {len(staff_list)} - {name}")
-            QMessageBox.information(self, "Thành công", "Đã thêm nhân viên!")
+        ten_nv, ok1 = QInputDialog.getText(dialog, "Thêm Nhân Viên", "Nhập tên nhân viên:")
+        if not ok1 or not ten_nv:
+            return
 
-    # Xóa nhân viên
+        vai_tro, ok2 = QInputDialog.getText(dialog, "Vai Trò", "Nhập vai trò của nhân viên:")
+        if not ok2 or not vai_tro:
+            QMessageBox.warning(self, "Thiếu thông tin", "Bạn phải nhập vai trò!")
+            return
+
+        try:
+            cursor = self.conn.cursor()
+
+            # Tạo ID tự động (giống như NV001, NV002,...)
+            cursor.execute("SELECT MAX(ID_NHANSU) FROM NHAN_SU")
+            max_id = cursor.fetchone()[0]
+            so_moi = int(max_id.strip()[2:]) + 1 if max_id else 1
+            new_id = f"NV{so_moi:03d}"
+
+            # Chèn vào DB đầy đủ các cột
+            cursor.execute(
+                "INSERT INTO NHAN_SU (ID_NHANSU, TEN_NHANSU, VAI_TRO) VALUES (?, ?, ?)",
+                (new_id, ten_nv, vai_tro)
+            )
+            self.conn.commit()
+
+            staff_list.addItem(f"{new_id} - {ten_nv} ({vai_tro})")
+            QMessageBox.information(self, "Thành công", f"Đã thêm nhân viên {new_id}!")
+            self.add_notification(f"Đã thêm nhân viên {ten_nv} với vai trò {vai_tro} thành công!")
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi", f"Lỗi khi thêm vào database: {str(e)}")
+            
+        # Xóa nhân viên
+    # def remove_staff(self, dialog, staff_list):
+    #     selected = staff_list.currentItem()
+    #     if selected:
+    #         staff_list.takeItem(staff_list.row(selected))
+    #         QMessageBox.information(self, "Thành công", "Đã xóa nhân viên!")
+    #         self.add_notification(f"Đã xóa nhân viên thành công!")
+
     def remove_staff(self, dialog, staff_list):
-        selected = staff_list.currentItem()
-        if selected:
-            staff_list.takeItem(staff_list.row(selected))
-            QMessageBox.information(self, "Thành công", "Đã xóa nhân viên!")
+        selected_item = staff_list.currentItem()
+        if not selected_item:
+            QMessageBox.warning(self, "Chưa chọn", "Hãy chọn một nhân viên để xóa!")
+            return
 
+        reply = QMessageBox.question(
+            self,
+            "Xác nhận xóa",
+            f"Bạn có chắc muốn xóa nhân viên này?\n{selected_item.text()}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                # Lấy ID nhân viên từ chuỗi (giả sử định dạng: NV001 - Tên ...)
+                ma_nv = selected_item.text().split(" - ")[0]
+
+                cursor = self.conn.cursor()
+                cursor.execute("DELETE FROM NHAN_SU WHERE ID_NHANSU = ?", (ma_nv,))
+                self.conn.commit()
+
+                # Xóa khỏi QListWidget
+                staff_list.takeItem(staff_list.row(selected_item))
+
+                QMessageBox.information(self, "Thành công", f"Đã xóa nhân viên {ma_nv}!")
+            except Exception as e:
+                QMessageBox.critical(self, "Lỗi", f"Lỗi khi xóa nhân viên: {str(e)}")
     # Đăng xuất
     def logout(self):
         reply = QMessageBox.question(self, "Đăng Xuất", "Bạn có chắc muốn đăng xuất?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
@@ -1977,6 +2055,16 @@ class NguyenLieuTonKhoUI(QWidget):
 
         layout = QVBoxLayout(self)
 
+        # --- Tìm kiếm nguyên liệu
+        search_layout = QHBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Nhập tên nguyên liệu cần tìm...")
+        search_btn = QPushButton("Tìm")
+        search_btn.clicked.connect(self.tim_nguyen_lieu)
+        search_layout.addWidget(self.search_input)
+        search_layout.addWidget(search_btn)
+        layout.addLayout(search_layout)
+        
         # --- Form thêm nguyên liệu
         form_layout = QFormLayout()
         self.ten_input = QLineEdit()
@@ -2039,13 +2127,29 @@ class NguyenLieuTonKhoUI(QWidget):
         """)
 
     def tai_lai_bang(self):
-        self.table.setRowCount(0)
         data = InNguyenLieu()
+        self.hien_thi_bang(data)
+    
+    
+    def hien_thi_bang(self, data):
+        self.table.setRowCount(0)
         for row_idx, row in enumerate(data):
             self.table.insertRow(row_idx)
             for col_idx, value in enumerate(row):
                 self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(value)))
-
+    
+    
+    def tim_nguyen_lieu(self):
+        ten = self.search_input.text()
+        if not ten:
+            QMessageBox.warning(self, "Thiếu dữ liệu", "Nhập tên nguyên liệu cần tìm.")
+            return
+        try:
+            results = tim_kiem_nguyen_lieu(ten)
+            self.hien_thi_bang(results)
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi", f"Lỗi khi tìm nguyên liệu: {e}")
+    
     def them_nguyen_lieu(self):
         ten = self.ten_input.text()
         dv = self.don_vi_input.text()
@@ -2085,6 +2189,8 @@ class NguyenLieuTonKhoUI(QWidget):
         QMessageBox.information(self, "Đã xoá", f"Đã xoá nguyên liệu ID {id_nl}")
         self.tai_lai_bang()
 
+ 
+    
         
 class MonManager(QWidget):
     def __init__(self):
@@ -2177,6 +2283,274 @@ class MonManager(QWidget):
         QMessageBox.information(self, "Đã xoá", f"Đã xoá món có ID {id_mon}")
         self.tai_lai_bang()
 
+
+class Doanh_thu(QWidget):
+    def __init__(self,connection):
+        super().__init__()
+        self.conn = connection
+        self.cursor = connection.cursor()
+        self.setWindowTitle("Thống kê Doanh Thu")
+        self.resize(800, 600)
+
+        self.layout = QVBoxLayout(self)
+
+        # Tổng doanh thu toàn bộ
+        self.total_label = QLabel("Tổng doanh thu (toàn bộ):")
+        self.total_result = QLabel("0 VND")
+
+        # Tổng doanh thu theo tháng
+        self.month_layout = QHBoxLayout()
+        self.month_input = QLineEdit()
+        self.month_input.setPlaceholderText("Nhập tháng (1-12)")
+        self.month_btn = QPushButton("Tính tổng theo tháng")
+        self.month_btn.clicked.connect(self.tinh_tong_theo_thang)
+        self.month_result = QLabel("0 VND")
+        self.month_layout.addWidget(self.month_input)
+        self.month_layout.addWidget(self.month_btn)
+        self.month_layout.addWidget(self.month_result)
+
+        # Tổng doanh thu theo năm
+        self.year_layout = QHBoxLayout()
+        self.year_input = QLineEdit()
+        self.year_input.setPlaceholderText("Nhập năm")
+        self.year_btn = QPushButton("Tính tổng theo năm")
+        self.year_btn.clicked.connect(self.tinh_tong_theo_nam)
+        self.year_result = QLabel("0 VND")
+        self.year_layout.addWidget(self.year_input)
+        self.year_layout.addWidget(self.year_btn)
+        self.year_layout.addWidget(self.year_result)
+
+        # Trung bình doanh thu toàn bộ
+        self.avg_label = QLabel("Trung bình doanh thu (toàn bộ):")
+        self.avg_result = QLabel("0 VND")
+
+        # Trung bình doanh thu theo tháng
+        self.avg_month_layout = QHBoxLayout()
+        self.avg_month_input = QLineEdit()
+        self.avg_month_input.setPlaceholderText("Nhập tháng")
+        self.avg_month_btn = QPushButton("Tính TB theo tháng")
+        self.avg_month_btn.clicked.connect(self.tinh_avg_thang)
+        self.avg_month_result = QLabel("0 VND")
+        self.avg_month_layout.addWidget(self.avg_month_input)
+        self.avg_month_layout.addWidget(self.avg_month_btn)
+        self.avg_month_layout.addWidget(self.avg_month_result)
+
+        # Trung bình doanh thu theo năm
+        self.avg_year_layout = QHBoxLayout()
+        self.avg_year_input = QLineEdit()
+        self.avg_year_input.setPlaceholderText("Nhập năm")
+        self.avg_year_btn = QPushButton("Tính TB theo năm")
+        self.avg_year_btn.clicked.connect(self.tinh_avg_nam)
+        self.avg_year_result = QLabel("0 VND")
+        self.avg_year_layout.addWidget(self.avg_year_input)
+        self.avg_year_layout.addWidget(self.avg_year_btn)
+        self.avg_year_layout.addWidget(self.avg_year_result)
+
+        # Tìm kiếm hóa đơn theo ID (code của bạn)
+        self.search_layout = QHBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Nhập ID hóa đơn")
+        self.search_btn = QPushButton("Tìm hóa đơn")
+        self.search_btn.clicked.connect(self.hien_thi_hoa_don)
+        self.search_layout.addWidget(self.search_input)
+        self.search_layout.addWidget(self.search_btn)
+        self.layout.addLayout(self.search_layout)
+
+        # Tạo canvas cho biểu đồ
+        self.figure = Figure(figsize=(5, 3), dpi=100)
+        self.canvas = FigureCanvas(self.figure)
+        self.layout.addWidget(self.canvas)
+        
+        # Nút vẽ biểu đồ
+        self.year_chart_layout = QHBoxLayout()
+        self.year_label = QLabel("Chọn năm để vẽ biểu đồ:")
+        self.year_combo = QComboBox()
+        self.year_chart_layout.addWidget(self.year_label)
+        self.year_chart_layout.addWidget(self.year_combo)
+        self.layout.addLayout(self.year_chart_layout)
+        
+        
+        self.table = QTableWidget()  # Đảm bảo khai báo self.table
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(["Tên món", "Số lượng", "Đơn giá", "Phương thức thanh toán"])
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, header.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, header.ResizeMode.Fixed)
+        self.table.setColumnWidth(1, 80)
+        header.setSectionResizeMode(2, header.ResizeMode.Fixed)
+        self.table.setColumnWidth(2, 100)
+        header.setSectionResizeMode(3, header.ResizeMode.Stretch)
+        self.layout.addWidget(self.table)
+        
+        
+        self.hoa_don_result = QTextEdit()
+        self.hoa_don_result.setReadOnly(True)
+
+        # Thêm tất cả vào layout chính
+        self.layout.addWidget(self.total_label)
+        self.layout.addWidget(self.total_result)
+        self.layout.addLayout(self.month_layout)
+        self.layout.addLayout(self.year_layout)
+        self.layout.addWidget(self.avg_label)
+        self.layout.addWidget(self.avg_result)
+        self.layout.addLayout(self.avg_month_layout)
+        self.layout.addLayout(self.avg_year_layout)
+        self.layout.addLayout(self.search_layout)
+        self.layout.addWidget(self.hoa_don_result)
+
+        self.cap_nhat_so_lieu()
+
+        # Lấy danh sách các năm từ NGAY_HOADON
+        self.load_years()
+
+        # Vẽ biểu đồ ban đầu (nếu có năm được chọn)
+        self.year_combo.currentTextChanged.connect(self.ve_bieu_do_doanh_thu)
+    def load_years(self):
+        """
+        Lấy danh sách các năm từ cột NGAY_HOADON trong bảng HOA_DON và thêm vào QComboBox.
+        """
+        try:
+            self.cursor.execute("SELECT DISTINCT YEAR(NGAY_HOADON) FROM HOA_DON ORDER BY YEAR(NGAY_HOADON)")
+            years = [str(row[0]) for row in self.cursor.fetchall()]
+            self.year_combo.addItems(years)
+        except pyodbc.Error as ex:
+            sqlstate = ex.args[0]
+            error_msg = ex.args[1]
+            print(f"Lỗi truy vấn SQL: {sqlstate} - {error_msg}")
+
+    def ve_bieu_do_doanh_thu(self):
+        """
+        Vẽ biểu đồ doanh thu theo tháng trong năm được chọn.
+        """
+        selected_year = self.year_combo.currentText()
+        if not selected_year:
+            return
+
+        try:
+            # Truy vấn tổng doanh thu theo tháng trong năm được chọn
+            self.cursor.execute("""
+                SELECT MONTH(NGAY_HOADON) as thang, SUM(TONGTIEN) as doanh_thu
+                FROM HOA_DON
+                WHERE YEAR(NGAY_HOADON) = ?
+                GROUP BY MONTH(NGAY_HOADON)
+                ORDER BY thang
+            """, (selected_year,))
+            data = self.cursor.fetchall()
+
+            # Xóa biểu đồ cũ
+            self.figure.clear()
+            ax = self.figure.add_subplot(111)
+
+            if not data:
+                ax.text(0.5, 0.5, f"Không có dữ liệu cho năm {selected_year}", 
+                        horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)
+                self.canvas.draw()
+                return
+
+            months = [row[0] for row in data]  # Tháng
+            revenues = [row[1] for row in data]  # Doanh thu
+
+            # Vẽ biểu đồ cột
+            ax.bar(months, revenues, color='skyblue')
+            ax.set_xlabel("Tháng")
+            ax.set_ylabel("Doanh thu (VND)")
+            ax.set_title(f"Doanh thu theo tháng (Năm {selected_year})")
+            ax.set_xticks(range(1, 13))  # Hiển thị tất cả 12 tháng
+            ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+            self.canvas.draw()
+
+        except pyodbc.Error as ex:
+            sqlstate = ex.args[0]
+            error_msg = ex.args[1]
+            print(f"Lỗi truy vấn SQL: {sqlstate} - {error_msg}")
+    
+    
+    def hien_thi_hoa_don(self):
+        """
+        Hiển thị danh sách các món, số lượng, đơn giá và phương thức thanh toán của một ID_HOADON vào bảng.
+        """
+        id_hoadon = self.search_input.text().strip()
+        if not id_hoadon:
+            self.table.setRowCount(1)
+            self.table.setItem(0, 0, QTableWidgetItem("Vui lòng nhập ID hóa đơn"))
+            return
+
+        try:
+            # Truy vấn SQL
+            self.cursor.execute("""
+                SELECT cthd.TEN_MON, cthd.SO_LUONG, cthd.DON_GIA, hd.HINH_THUC_TT
+                FROM CT_HOADON cthd
+                LEFT JOIN HOA_DON hd ON cthd.ID_HOADON = hd.ID_HOADON
+                WHERE cthd.ID_HOADON = ?
+            """, (id_hoadon,))
+            chi_tiet = self.cursor.fetchall()
+
+            # Xóa dữ liệu cũ trong bảng
+            self.table.setRowCount(0)
+
+            if not chi_tiet:
+                self.table.setRowCount(1)
+                self.table.setItem(0, 0, QTableWidgetItem(f"Không tìm thấy chi tiết hóa đơn cho ID_HOADON = {id_hoadon}"))
+                return
+
+            # Điền dữ liệu vào bảng
+            self.table.setRowCount(len(chi_tiet))
+            for row_idx, row in enumerate(chi_tiet):
+                ten_mon, so_luong, don_gia, phuong_thuc = row
+                self.table.setItem(row_idx, 0, QTableWidgetItem(str(ten_mon)))
+                self.table.setItem(row_idx, 1, QTableWidgetItem(str(so_luong)))
+                self.table.setItem(row_idx, 2, QTableWidgetItem(f"{don_gia:,.2f}"))
+                self.table.setItem(row_idx, 3, QTableWidgetItem(str(phuong_thuc) if phuong_thuc else "N/A"))
+
+        except pyodbc.Error as ex:
+            sqlstate = ex.args[0]
+            error_msg = ex.args[1]
+            self.table.setRowCount(1)
+            self.table.setItem(0, 0, QTableWidgetItem(f"Lỗi truy vấn SQL: {sqlstate} - {error_msg}"))
+
+    def closeEvent(self, event):
+        self.cursor.close()
+        self.conn.close()
+        event.accept()
+
+    def cap_nhat_so_lieu(self):
+
+        self.total_result.setText(f"{tong_all_doanhthu():,} VND")
+        self.avg_result.setText(f"{avg_doanhthu():,.0f} VND")
+
+    def tinh_tong_theo_thang(self):
+
+        try:
+            month = int(self.month_input.text())
+            self.month_result.setText(f"{tong_thang_doanhthu(month):,} VND")
+        except Exception as e:
+            QMessageBox.warning(self, "Lỗi", str(e))
+
+    def tinh_tong_theo_nam(self):
+
+        try:
+            year = int(self.year_input.text())
+            self.year_result.setText(f"{tong_nam_doanhthu(year):,} VND")
+        except Exception as e:
+            QMessageBox.warning(self, "Lỗi", str(e))
+
+    def tinh_avg_thang(self):
+
+        try:
+            thang = int(self.avg_month_input.text())
+            self.avg_month_result.setText(f"{avg_thang(thang):,.0f} VND")
+        except Exception as e:
+            QMessageBox.warning(self, "Lỗi", str(e))
+
+    def tinh_avg_nam(self):
+
+        try:
+            nam = int(self.avg_year_input.text())
+            self.avg_year_result.setText(f"{avg_nam(nam):,.0f} VND")
+        except Exception as e:
+            QMessageBox.warning(self, "Lỗi", str(e))
+
+            
 if __name__ == "__main__":
     QtWidgets.QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.RoundPreferFloor

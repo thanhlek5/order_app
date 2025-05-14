@@ -15,10 +15,10 @@ def InNguyenLieu():
     cursor.execute("SELECT * FROM NGUYENLIEU_TONKHO")
     return cursor.fetchall()
 
-# # --- Tìm Kiếm Nguyên Liệu ---
-# def tim_kiem_nguyen_lieu(cursor, TEN_NGUYENLIEU):
-#     cursor.execute("SELECT * FROM NGUYENLIEU_TONKHO WHERE TEN_NGUYENLIEU LIKE ?", ('%' + TEN_NGUYENLIEU + '%',))
-#     return cursor.fetchall()
+# --- Tìm Kiếm Nguyên Liệu ---
+def tim_kiem_nguyen_lieu( TEN_NGUYENLIEU):
+    cursor.execute("SELECT * FROM NGUYENLIEU_TONKHO WHERE TEN_NGUYENLIEU LIKE ?", ('%' + TEN_NGUYENLIEU + '%',))
+    return cursor.fetchall()
 
 
 # --- Xoá Nguyên Liệu ---
