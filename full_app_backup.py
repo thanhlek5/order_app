@@ -5,7 +5,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QGridLayout,
                             QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
                             QLineEdit, QFrame, QScrollArea, QSpacerItem, 
                             QSizePolicy, QTableWidget, QTableWidgetItem, QHeaderView,
-                            QMessageBox, QDialog, QListWidget, QComboBox, QTextEdit,QInputDialog,QFormLayout)
+                            QMessageBox, QDialog, QListWidget, QComboBox, QTextEdit,QInputDialog,QFormLayout,QListWidgetItem
+                            )
 from PyQt6.QtCore import Qt, QSize, QByteArray
 from PyQt6.QtGui import QFont, QColor, QPalette, QIcon, QPixmap, QImage
 import pyodbc
@@ -1851,11 +1852,11 @@ class CoffeePOS(QMainWindow):
         # Giả lập danh sách nhân viên (có thể lấy từ database sau)
         
         # Truy vấn danh sách nhân viên
-        self.cursor.execute("SELECT TEN_NHANSU, VAI_TRO FROM dbo.NHAN_SU")
+        self.cursor.execute("SELECT ID_NHANSU,TEN_NHANSU, VAI_TRO FROM dbo.NHAN_SU")
         rows = self.cursor.fetchall()
 
         # Format dữ liệu thành chuỗi để hiển thị
-        staff_data = [f"{ten} - {chucvu}" for ten, chucvu in rows]
+        staff_data = [f"{id_nv} - {ten} - {chucvu}" for id_nv,ten, chucvu in rows]
             
         
         
@@ -1948,15 +1949,10 @@ class CoffeePOS(QMainWindow):
             self.add_notification(f"Đã thêm nhân viên {ten_nv} với vai trò {vai_tro} thành công!")
         except Exception as e:
             QMessageBox.critical(self, "Lỗi", f"Lỗi khi thêm vào database: {str(e)}")
-            
-        # Xóa nhân viên
-    # def remove_staff(self, dialog, staff_list):
-    #     selected = staff_list.currentItem()
-    #     if selected:
-    #         staff_list.takeItem(staff_list.row(selected))
-    #         QMessageBox.information(self, "Thành công", "Đã xóa nhân viên!")
-    #         self.add_notification(f"Đã xóa nhân viên thành công!")
+    
 
+
+            
     def remove_staff(self, dialog, staff_list):
         selected_item = staff_list.currentItem()
         if not selected_item:
@@ -1972,19 +1968,25 @@ class CoffeePOS(QMainWindow):
 
         if reply == QMessageBox.StandardButton.Yes:
             try:
-                # Lấy ID nhân viên từ chuỗi (giả sử định dạng: NV001 - Tên ...)
-                ma_nv = selected_item.text().split(" - ")[0]
+                # Lấy ID từ chuỗi (VD: "NV003 - Long_bisexual")
+                parts = selected_item.text().split(" - ")
+                if len(parts) < 1:
+                    QMessageBox.warning(self, "Sai định dạng", "Không thể trích xuất mã nhân viên.")
+                    return
+
+                ma_nv = parts[0].strip()
 
                 cursor = self.conn.cursor()
                 cursor.execute("DELETE FROM NHAN_SU WHERE ID_NHANSU = ?", (ma_nv,))
                 self.conn.commit()
+                cursor.close()
 
-                # Xóa khỏi QListWidget
                 staff_list.takeItem(staff_list.row(selected_item))
 
                 QMessageBox.information(self, "Thành công", f"Đã xóa nhân viên {ma_nv}!")
             except Exception as e:
                 QMessageBox.critical(self, "Lỗi", f"Lỗi khi xóa nhân viên: {str(e)}")
+
     # Đăng xuất
     def logout(self):
         reply = QMessageBox.question(self, "Đăng Xuất", "Bạn có chắc muốn đăng xuất?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
